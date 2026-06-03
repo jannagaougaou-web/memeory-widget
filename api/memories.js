@@ -61,9 +61,21 @@ export default async function handler(req, res) {
       // Hours Together — could be number, formula, or rollup
       const htProp = props['Hours Together'];
       let hoursTogether = 0;
-      if (htProp?.type === 'number') hoursTogether = htProp.number ?? 0;
-      else if (htProp?.type === 'formula') hoursTogether = htProp.formula?.number ?? 0;
-      else if (htProp?.type === 'rollup') hoursTogether = htProp.rollup?.number ?? 0;
+      if (htProp?.type === 'number') {
+        hoursTogether = htProp.number ?? 0;
+      } else if (htProp?.type === 'formula') {
+        hoursTogether = htProp.formula?.number ?? 0;
+      } else if (htProp?.type === 'rollup') {
+        // Rollup can return number, array, or date
+        const r = htProp.rollup;
+        if (r?.type === 'number') hoursTogether = r.number ?? 0;
+        else if (r?.type === 'array') {
+          // Sum all numbers in array
+          hoursTogether = (r.array || []).reduce((acc, item) => {
+            return acc + (item?.number ?? item?.formula?.number ?? 0);
+          }, 0);
+        }
+      }
 
       // Unlocked — checkbox, formula boolean, or compute from hours
       const unlockedProp = props['Unlocked'];
