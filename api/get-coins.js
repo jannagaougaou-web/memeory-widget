@@ -24,22 +24,43 @@ export default async function handler(req, res) {
     const props = data.results[0].properties;
     const pageId = data.results[0].id;
 
-    // Read Coin Balance (formula)
-    let availableCoins = 0;
+    let totalEarned = 0;
     let coinSpent = 0;
+    let availableCoins = 0;
+
+    // Log all props for debugging
+    const propSummary = {};
     for (const [key, val] of Object.entries(props)) {
+      let v = null;
+      if (val.type === 'number') v = val.number;
+      else if (val.type === 'formula') v = val.formula?.number ?? val.formula?.string;
+      else if (val.type === 'rollup') v = val.rollup?.number;
+      propSummary[key] = { type: val.type, value: v };
+
       const k = key.toLowerCase();
-      if (k.includes('balance') || (k.includes('coin') && k.includes('balance'))) {
-        if (val.type === 'number') availableCoins = val.number ?? 0;
-        else if (val.type === 'formula') availableCoins = val.formula?.number ?? 0;
-        else if (val.type === 'rollup') availableCoins = val.rollup?.number ?? 0;
+      // Coin Balance formula
+      if (k === 'coin balance' || k === 'coinbalance') {
+        if (val.type === 'formula') availableCoins = val.formula?.number ?? 0;
+        else if (val.type === 'number') availableCoins = val.number ?? 0;
       }
-      if (k.includes('spent') || k.includes('spend')) {
+      // Total Coin Earned rollup
+      if (k === 'total coin earned' || k === 'total coin earn') {
+        if (val.type === 'rollup') totalEarned = val.rollup?.number ?? 0;
+        else if (val.type === 'number') totalEarned = val.number ?? 0;
+        else if (val.type === 'formula') totalEarned = val.formula?.number ?? 0;
+      }
+      // Coin Spent
+      if (k === 'coin spent' || k === 'coins spent') {
         if (val.type === 'number') coinSpent = val.number ?? 0;
       }
     }
 
-    return res.status(200).json({ availableCoins, coinSpent, pageId });
+    // If Coin Balance formula returned 0 but we have earned/spent, compute manually
+    if (availableCoins === 0 && totalEarned > 0) {
+      availableCoins = Math.max(0, totalEarned - coinSpent);
+    }
+
+    return res.status(200).json({ availableCoins, coinSpent, totalEarned, pageId, propSummary });
   } catch (err) {
     return res.status(500).json({ error: err.message, availableCoins: 0 });
   }
