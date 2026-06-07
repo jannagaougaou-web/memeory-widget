@@ -1,107 +1,90 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 
-// ── Storage helpers ───────────────────────────────────────────────────────────
 const ls = {
-  get: (k, fallback) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback } catch { return fallback } },
+  get: (k, fb) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fb } catch { return fb } },
   set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} },
 }
 
-const DEFAULT_COURSES = ['Biology','Physics','English','Math','Sport','French','Philosophy','Chemistry','Integrative Science']
-
-// ── Secret settings trigger: click logo 5 times ───────────────────────────────
-function useSecretClick(onActivate) {
+function useSecretClick(cb) {
   const count = useRef(0)
   const timer = useRef(null)
   return () => {
     count.current += 1
     clearTimeout(timer.current)
-    if (count.current >= 5) { count.current = 0; onActivate() }
-    else { timer.current = setTimeout(() => { count.current = 0 }, 2000) }
+    if (count.current >= 5) { count.current = 0; cb() }
+    else timer.current = setTimeout(() => { count.current = 0 }, 2000)
   }
 }
 
 // ── Memory Card ───────────────────────────────────────────────────────────────
-function MemoryCard({ memory, image, customText, onClick }) {
-  const isUnlocked = memory.unlocked
+function MemoryCard({ memory, image, editedTitle, revealed, onClick }) {
   const pct = memory.hoursRequired > 0
     ? Math.min(100, Math.round((memory.hoursTogether / memory.hoursRequired) * 100))
     : 0
 
   return (
     <div
-      className={`memory-card ${isUnlocked ? 'unlocked' : ''}`}
       onClick={() => onClick(memory)}
-      title={isUnlocked ? memory.title : `Locked — ${memory.hoursRequired}h required`}
+      style={{
+        position: 'relative', borderRadius: '6px', overflow: 'hidden',
+        cursor: 'pointer', aspectRatio: '3/4',
+        border: memory.unlocked
+          ? revealed ? '1px solid rgba(255,200,100,0.5)' : '1px solid rgba(155,109,255,0.5)'
+          : '1px solid rgba(255,255,255,0.07)',
+        boxShadow: memory.unlocked
+          ? revealed ? '0 0 20px rgba(255,200,100,0.15)' : '0 0 20px rgba(155,109,255,0.15)'
+          : 'none',
+        transition: 'transform 0.2s, box-shadow 0.2s',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)' }}
+      onMouseLeave={e => { e.currentTarget.style.transform = '' }}
     >
-      {/* Background image or gradient */}
-      <div className="absolute inset-0" style={{
-        backgroundImage: image ? `url(${image})` : 'linear-gradient(135deg, #1a0b2e, #2d1060)',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        filter: isUnlocked ? 'none' : 'blur(8px) brightness(0.35)',
-        transform: 'scale(1.05)',
-        transition: 'filter 0.5s ease',
+      <div style={{
+        position: 'absolute', inset: 0,
+        backgroundImage: image ? `url(${image})` : 'linear-gradient(135deg,#1a0b2e,#2d1060)',
+        backgroundSize: 'cover', backgroundPosition: 'center',
+        filter: memory.unlocked ? 'none' : 'blur(8px) brightness(0.3)',
+        transform: 'scale(1.06)', transition: 'filter 0.5s',
       }} />
-
-      {/* Overlay */}
-      <div className="absolute inset-0" style={{
-        background: isUnlocked
-          ? 'linear-gradient(to top, rgba(10,8,20,0.85) 0%, rgba(10,8,20,0.2) 50%, transparent 100%)'
-          : 'linear-gradient(to top, rgba(10,8,20,0.95) 0%, rgba(10,8,20,0.7) 100%)',
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: memory.unlocked
+          ? 'linear-gradient(to top,rgba(10,8,20,0.92)0%,rgba(10,8,20,0.05)55%,transparent 100%)'
+          : 'linear-gradient(to top,rgba(10,8,20,0.97)0%,rgba(10,8,20,0.75)100%)',
       }} />
-
-      {/* Unlocked glow border */}
-      {isUnlocked && (
-        <div className="absolute inset-0 rounded pointer-events-none" style={{
-          boxShadow: 'inset 0 0 0 1px rgba(155,109,255,0.4)',
-        }} />
-      )}
-
-      {/* Content */}
-      <div className="absolute inset-0 flex flex-col justify-between p-3">
-        {/* Top — hours badge */}
-        <div className="flex justify-between items-start">
-          <span className="text-xs px-2 py-0.5 rounded-sm" style={{
-            background: isUnlocked ? 'rgba(155,109,255,0.3)' : 'rgba(255,255,255,0.08)',
-            color: isUnlocked ? '#c4a4ff' : 'rgba(255,255,255,0.4)',
-            border: `1px solid ${isUnlocked ? 'rgba(155,109,255,0.4)' : 'rgba(255,255,255,0.1)'}`,
-            fontSize: '0.65rem',
-            letterSpacing: '0.05em',
-          }}>
-            {memory.hoursRequired}h
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{
+            fontSize: '0.62rem', padding: '2px 7px', borderRadius: '2px',
+            background: memory.unlocked ? (revealed ? 'rgba(255,200,100,0.2)' : 'rgba(155,109,255,0.3)') : 'rgba(255,255,255,0.07)',
+            color: memory.unlocked ? (revealed ? '#ffd580' : '#c4a4ff') : 'rgba(255,255,255,0.3)',
+            border: `1px solid ${memory.unlocked ? (revealed ? 'rgba(255,200,100,0.4)' : 'rgba(155,109,255,0.5)') : 'rgba(255,255,255,0.1)'}`,
+            letterSpacing: '0.04em',
+          }}>{memory.hoursRequired}h</span>
+          <span style={{ fontSize: '13px' }}>
+            {memory.unlocked ? (revealed ? '📖' : '✨') : '🔒'}
           </span>
-
-          {isUnlocked ? (
-            <span style={{ fontSize: '14px' }}>✨</span>
-          ) : (
-            <span style={{ fontSize: '14px', opacity: 0.5 }}>🔒</span>
-          )}
         </div>
-
-        {/* Bottom — title or locked info */}
         <div>
-          {isUnlocked ? (
-            <p className="font-display italic text-sm leading-tight" style={{ color: '#e8dff5' }}>
-              {customText || memory.title}
-            </p>
+          {memory.unlocked ? (
+            revealed ? (
+              <p style={{ fontFamily: 'Cormorant Garamond,serif', fontStyle: 'italic', fontSize: '0.82rem', color: '#f5e6c0', lineHeight: 1.35, margin: 0 }}>
+                {editedTitle || memory.title}
+              </p>
+            ) : (
+              <div>
+                <p style={{ fontFamily: 'Cormorant Garamond,serif', fontStyle: 'italic', fontSize: '0.75rem', color: 'rgba(232,223,245,0.4)', margin: '0 0 4px', lineHeight: 1.3 }}>
+                  🪙 {memory.hoursRequired} to reveal
+                </p>
+                <p style={{ fontSize: '0.6rem', color: 'rgba(155,109,255,0.6)', margin: 0 }}>Click to unlock text</p>
+              </div>
+            )
           ) : (
             <div>
-              {/* Progress bar */}
-              <div className="mb-1.5" style={{
-                height: '2px',
-                background: 'rgba(255,255,255,0.1)',
-                borderRadius: '1px',
-                overflow: 'hidden',
-              }}>
-                <div style={{
-                  width: `${pct}%`,
-                  height: '100%',
-                  background: 'linear-gradient(90deg, #6b3fa0, #9b6dff)',
-                  borderRadius: '1px',
-                  transition: 'width 0.5s ease',
-                }} />
+              <div style={{ height: '2px', background: 'rgba(255,255,255,0.08)', borderRadius: '1px', marginBottom: '5px', overflow: 'hidden' }}>
+                <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg,#6b3fa0,#9b6dff)' }} />
               </div>
-              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.6rem', letterSpacing: '0.05em' }}>
+              <p style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.28)', margin: 0 }}>
                 {pct}% · {memory.hoursTogether}h / {memory.hoursRequired}h
               </p>
             </div>
@@ -113,89 +96,133 @@ function MemoryCard({ memory, image, customText, onClick }) {
 }
 
 // ── Card Detail Modal ─────────────────────────────────────────────────────────
-function CardModal({ memory, image, customText, onClose }) {
+function CardModal({ memory, image, editedTitle, revealed, coins, onSpend, onClose }) {
+  const [spending, setSpending] = useState(false)
+  const [spendError, setSpendError] = useState('')
+
   if (!memory) return null
-  const isUnlocked = memory.unlocked
+
+  const pct = memory.hoursRequired > 0
+    ? Math.min(100, Math.round((memory.hoursTogether / memory.hoursRequired) * 100))
+    : 0
+
+  const canAfford = coins >= memory.hoursRequired
+
+  const handleSpend = async () => {
+    setSpending(true)
+    setSpendError('')
+    try {
+      await onSpend(memory.id, memory.hoursRequired)
+    } catch (err) {
+      setSpendError(err.message)
+    } finally {
+      setSpending(false)
+    }
+  }
 
   return (
-    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="modal-box max-w-sm">
+    <div onClick={e => e.target === e.currentTarget && onClose()} style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+      <div style={{ background: '#0f0c1a', border: `1px solid ${revealed ? 'rgba(255,200,100,0.3)' : 'rgba(155,109,255,0.3)'}`, borderRadius: '6px', boxShadow: '0 20px 60px rgba(0,0,0,0.7)', width: '100%', maxWidth: '360px' }}>
+
         {/* Image */}
-        <div className="relative overflow-hidden" style={{ height: '200px', borderRadius: '4px 4px 0 0' }}>
+        <div style={{ position: 'relative', height: '180px', borderRadius: '6px 6px 0 0', overflow: 'hidden' }}>
           <div style={{
             position: 'absolute', inset: 0,
-            backgroundImage: image ? `url(${image})` : 'linear-gradient(135deg, #1a0b2e, #2d1060)',
+            backgroundImage: image ? `url(${image})` : 'linear-gradient(135deg,#1a0b2e,#2d1060)',
             backgroundSize: 'cover', backgroundPosition: 'center',
-            filter: isUnlocked ? 'none' : 'blur(10px) brightness(0.3)',
+            filter: memory.unlocked ? 'none' : 'blur(10px) brightness(0.2)',
             transform: 'scale(1.05)',
           }} />
-          <div style={{
-            position: 'absolute', inset: 0,
-            background: 'linear-gradient(to top, rgba(10,8,20,0.8) 0%, transparent 60%)',
-          }} />
-          {!isUnlocked && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                <div style={{ fontSize: '32px', marginBottom: '8px' }}>🔒</div>
-                <p className="text-xs tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                  {memory.hoursRequired}h required
-                </p>
-              </div>
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top,rgba(10,8,20,0.85)0%,transparent 60%)' }} />
+          {!memory.unlocked && (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ fontSize: '28px', marginBottom: '6px' }}>🔒</div>
+              <p style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{memory.hoursRequired}h required</p>
             </div>
           )}
-          {isUnlocked && (
-            <div className="absolute bottom-3 left-4">
-              <span style={{ fontSize: '18px' }}>✨</span>
+          {memory.unlocked && !revealed && (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ fontSize: '28px', marginBottom: '6px' }}>✨</div>
+              <p style={{ fontSize: '0.68rem', color: 'rgba(196,164,255,0.7)', letterSpacing: '0.1em' }}>Unlocked! Spend coins to read</p>
             </div>
           )}
         </div>
 
         {/* Body */}
-        <div className="p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-xs px-2 py-0.5 rounded-sm" style={{
-              background: 'rgba(155,109,255,0.15)',
-              color: 'var(--purple-soft)',
-              border: '1px solid rgba(155,109,255,0.3)',
-              fontSize: '0.65rem',
-              letterSpacing: '0.05em',
-            }}>
+        <div style={{ padding: '1.2rem' }}>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.62rem', padding: '2px 8px', borderRadius: '2px', background: 'rgba(155,109,255,0.15)', color: '#c4a4ff', border: '1px solid rgba(155,109,255,0.3)' }}>
               {memory.course}
             </span>
-            <span className="text-xs" style={{ color: 'var(--text-dim)' }}>{memory.hoursRequired}h milestone</span>
+            <span style={{ fontSize: '0.68rem', color: 'rgba(232,223,245,0.35)' }}>{memory.hoursRequired}h milestone</span>
           </div>
 
-          {isUnlocked ? (
+          {!memory.unlocked && (
             <>
-              <p className="font-display italic text-lg leading-snug mb-2" style={{ color: 'var(--text)' }}>
-                {customText || memory.title}
-              </p>
-              <p className="text-xs" style={{ color: 'rgba(155,109,255,0.7)' }}>Memory unlocked ✨</p>
-            </>
-          ) : (
-            <>
-              <p className="font-display italic text-lg mb-2" style={{ color: 'rgba(255,255,255,0.25)' }}>
-                ???
-              </p>
-              <div className="mt-3">
-                <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-dim)' }}>
-                  <span>Progress</span>
-                  <span>{memory.hoursTogether}h / {memory.hoursRequired}h</span>
+              <p style={{ fontFamily: 'Cormorant Garamond,serif', fontStyle: 'italic', fontSize: '1.05rem', color: 'rgba(255,255,255,0.15)', marginBottom: '12px' }}>???</p>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: 'rgba(232,223,245,0.35)', marginBottom: '4px' }}>
+                  <span>Progress</span><span>{memory.hoursTogether}h / {memory.hoursRequired}h</span>
                 </div>
-                <div style={{ height: '3px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', overflow: 'hidden' }}>
-                  <div style={{
-                    width: `${Math.min(100, Math.round((memory.hoursTogether/memory.hoursRequired)*100))}%`,
-                    height: '100%',
-                    background: 'linear-gradient(90deg, #6b3fa0, #9b6dff)',
-                  }} />
+                <div style={{ height: '3px', background: 'rgba(255,255,255,0.07)', borderRadius: '2px', overflow: 'hidden' }}>
+                  <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg,#6b3fa0,#9b6dff)' }} />
                 </div>
               </div>
             </>
           )}
+
+          {memory.unlocked && !revealed && (
+            <div>
+              <p style={{ fontFamily: 'Cormorant Garamond,serif', fontStyle: 'italic', fontSize: '1rem', color: 'rgba(232,223,245,0.25)', marginBottom: '14px', letterSpacing: '0.1em' }}>
+                ✦ ✦ ✦ hidden ✦ ✦ ✦
+              </p>
+              <div style={{ background: 'rgba(155,109,255,0.06)', border: '1px solid rgba(155,109,255,0.15)', borderRadius: '4px', padding: '12px', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'rgba(232,223,245,0.5)' }}>Cost to reveal</span>
+                  <span style={{ fontSize: '0.9rem', color: '#ffd580', fontWeight: 500 }}>🪙 {memory.hoursRequired}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'rgba(232,223,245,0.5)' }}>Your balance</span>
+                  <span style={{ fontSize: '0.9rem', color: canAfford ? '#a8e6a3' : 'rgba(255,120,120,0.8)', fontWeight: 500 }}>🪙 {coins}</span>
+                </div>
+              </div>
+              {spendError && <p style={{ fontSize: '0.7rem', color: 'rgba(255,120,150,0.8)', marginBottom: '8px' }}>{spendError}</p>}
+              {!canAfford && (
+                <p style={{ fontSize: '0.7rem', color: 'rgba(255,150,100,0.7)', marginBottom: '8px' }}>
+                  Not enough coins — you need {memory.hoursRequired - coins} more 🪙
+                </p>
+              )}
+              <button
+                onClick={handleSpend}
+                disabled={!canAfford || spending}
+                style={{
+                  width: '100%', padding: '0.65rem', borderRadius: '2px', border: 'none',
+                  background: canAfford ? 'linear-gradient(135deg,#8b6914,#ffd580)' : 'rgba(255,255,255,0.06)',
+                  color: canAfford ? '#1a0f00' : 'rgba(255,255,255,0.2)',
+                  fontFamily: 'DM Sans,sans-serif', fontSize: '0.72rem', letterSpacing: '0.1em',
+                  textTransform: 'uppercase', cursor: canAfford ? 'pointer' : 'not-allowed',
+                  fontWeight: 600, transition: 'all 0.2s',
+                }}
+              >
+                {spending ? 'Spending…' : `🪙 Spend ${memory.hoursRequired} coins to reveal`}
+              </button>
+            </div>
+          )}
+
+          {memory.unlocked && revealed && (
+            <>
+              <p style={{ fontFamily: 'Cormorant Garamond,serif', fontStyle: 'italic', fontSize: '1.05rem', color: '#f5e6c0', lineHeight: 1.6, marginBottom: '8px' }}>
+                {editedTitle || memory.title}
+              </p>
+              <p style={{ fontSize: '0.68rem', color: 'rgba(255,200,100,0.5)' }}>📖 Memory revealed</p>
+            </>
+          )}
         </div>
 
-        <div className="px-5 pb-5 flex justify-end">
-          <button onClick={onClose} className="btn-s">Close</button>
+        <div style={{ padding: '0 1.2rem 1.2rem', display: 'flex', justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ background: 'transparent', border: '1px solid rgba(155,109,255,0.25)', color: '#c4a4ff', fontFamily: 'DM Sans,sans-serif', fontSize: '0.68rem', letterSpacing: '0.08em', textTransform: 'uppercase', padding: '0.5rem 1.2rem', borderRadius: '2px', cursor: 'pointer' }}>
+            Close
+          </button>
         </div>
       </div>
     </div>
@@ -203,156 +230,79 @@ function CardModal({ memory, image, customText, onClose }) {
 }
 
 // ── Settings Panel ────────────────────────────────────────────────────────────
-function SettingsPanel({ memories, images, customTexts, courses, onSaveImage, onSaveText, onSaveCourses, onClose }) {
-  const [tab, setTab] = useState('courses')
-  const [courseList, setCourseList] = useState([...courses])
-  const [newCourse, setNewCourse] = useState('')
-  const [editIdx, setEditIdx] = useState(null)
-  const [editVal, setEditVal] = useState('')
-  const [selectedMemoryId, setSelectedMemoryId] = useState(memories[0]?.id || '')
+function SettingsPanel({ memories, images, editedTitles, onSave, onClose }) {
+  const [selectedId, setSelectedId] = useState(memories[0]?.id || '')
   const [imgUrl, setImgUrl] = useState('')
-  const [memText, setMemText] = useState('')
-
-  const selectedMemory = memories.find(m => m.id === selectedMemoryId)
+  const [memTitle, setMemTitle] = useState('')
+  const [saved, setSaved] = useState(false)
+  const [previewOk, setPreviewOk] = useState(true)
 
   useEffect(() => {
-    if (selectedMemoryId) {
-      setImgUrl(images[selectedMemoryId] || '')
-      setMemText(customTexts[selectedMemoryId] || '')
-    }
-  }, [selectedMemoryId])
+    if (!selectedId) return
+    setImgUrl(images[selectedId] || '')
+    setMemTitle(editedTitles[selectedId] || memories.find(m => m.id === selectedId)?.title || '')
+    setPreviewOk(true)
+    setSaved(false)
+  }, [selectedId])
 
-  const addCourse = () => {
-    const t = newCourse.trim()
-    if (!t || courseList.includes(t)) return
-    setCourseList([...courseList, t])
-    setNewCourse('')
-  }
-
-  const removeCourse = i => setCourseList(courseList.filter((_, idx) => idx !== i))
-
-  const startEdit = i => { setEditIdx(i); setEditVal(courseList[i]) }
-  const confirmEdit = () => {
-    if (!editVal.trim()) return
-    const u = [...courseList]; u[editIdx] = editVal.trim()
-    setCourseList(u); setEditIdx(null)
-  }
-
-  const saveMemorySettings = () => {
-    onSaveImage(selectedMemoryId, imgUrl.trim())
-    onSaveText(selectedMemoryId, memText.trim())
+  const handleSave = () => {
+    onSave(selectedId, imgUrl.trim(), memTitle.trim())
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
   }
 
   return (
-    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="modal-box" style={{ maxWidth: '480px' }}>
-        {/* Header */}
-        <div className="px-5 pt-5 pb-3 border-b" style={{ borderColor: 'rgba(155,109,255,0.15)' }}>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs tracking-widest uppercase mb-0.5" style={{ color: 'var(--purple-soft)', opacity: 0.7 }}>⚙ Settings</p>
-              <h2 className="font-display text-2xl font-light italic" style={{ color: 'var(--text)' }}>Gallery Config</h2>
-            </div>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', fontSize: '18px' }}>✕</button>
+    <div onClick={e => e.target === e.currentTarget && onClose()} style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+      <div style={{ background: '#0f0c1a', border: '1px solid rgba(155,109,255,0.3)', borderRadius: '6px', boxShadow: '0 20px 60px rgba(0,0,0,0.7)', width: '100%', maxWidth: '440px' }}>
+        <div style={{ padding: '1.2rem 1.2rem 0.8rem', borderBottom: '1px solid rgba(155,109,255,0.12)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <p style={{ fontSize: '0.62rem', letterSpacing: '0.25em', textTransform: 'uppercase', color: 'rgba(196,164,255,0.55)', marginBottom: '2px' }}>⚙ Settings</p>
+            <h2 style={{ fontFamily: 'Cormorant Garamond,serif', fontWeight: 300, fontStyle: 'italic', fontSize: '1.5rem', color: '#e8dff5', margin: 0 }}>Edit Memories</h2>
           </div>
-          {/* Tabs */}
-          <div className="flex gap-2 mt-3">
-            {['courses','memories'].map(t => (
-              <button key={t} onClick={() => setTab(t)}
-                className="text-xs px-3 py-1 rounded-sm transition-all capitalize"
-                style={{
-                  background: tab === t ? 'rgba(155,109,255,0.2)' : 'transparent',
-                  border: `1px solid ${tab === t ? 'rgba(155,109,255,0.5)' : 'var(--border)'}`,
-                  color: tab === t ? 'var(--purple-soft)' : 'var(--text-dim)',
-                  cursor: 'pointer',
-                  fontFamily: 'DM Sans, sans-serif',
-                }}
-              >{t}</button>
-            ))}
-          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(232,223,245,0.35)', fontSize: '18px' }}>✕</button>
         </div>
 
-        {/* Tab: Courses */}
-        {tab === 'courses' && (
-          <div className="px-5 py-4">
-            <p className="text-xs mb-3" style={{ color: 'var(--text-dim)' }}>Add, rename or remove course tabs.</p>
-            <div className="max-h-52 overflow-y-auto mb-3">
-              {courseList.map((c, i) => (
-                <div key={i} className="flex items-center gap-2 py-1.5 group">
-                  {editIdx === i ? (
-                    <input autoFocus value={editVal} onChange={e => setEditVal(e.target.value)}
-                      onKeyDown={e => { if (e.key==='Enter') confirmEdit(); if(e.key==='Escape') setEditIdx(null) }}
-                      className="field-input flex-1" style={{ padding: '0.35rem 0.6rem', fontSize: '0.8rem' }} />
-                  ) : (
-                    <span className="flex-1 text-sm" style={{ color: 'var(--text)' }}>{c}</span>
-                  )}
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {editIdx === i
-                      ? <button onClick={confirmEdit} style={{ background: 'rgba(155,109,255,0.2)', color: 'var(--purple-soft)', border: 'none', cursor: 'pointer', borderRadius: '2px', padding: '2px 6px', fontSize: '11px' }}>✓</button>
-                      : <button onClick={() => startEdit(i)} style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-dim)', border: 'none', cursor: 'pointer', borderRadius: '2px', padding: '2px 6px', fontSize: '11px' }}>edit</button>
-                    }
-                    <button onClick={() => removeCourse(i)} style={{ background: 'rgba(180,60,100,0.15)', color: 'rgba(255,140,170,0.7)', border: 'none', cursor: 'pointer', borderRadius: '2px', padding: '2px 6px', fontSize: '11px' }}>✕</button>
-                  </div>
-                </div>
+        <div style={{ padding: '1.2rem' }}>
+          <p style={{ fontSize: '0.72rem', color: 'rgba(232,223,245,0.38)', marginBottom: '14px', lineHeight: 1.6 }}>
+            Select a memory to set its background image and edit the displayed text.
+          </p>
+
+          <div style={{ marginBottom: '14px' }}>
+            <label style={{ display: 'block', fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(232,223,245,0.38)', marginBottom: '6px' }}>Select Memory</label>
+            <select value={selectedId} onChange={e => setSelectedId(e.target.value)}
+              style={{ width: '100%', padding: '8px 10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(155,109,255,0.2)', borderRadius: '2px', color: '#e8dff5', fontFamily: 'DM Sans,sans-serif', fontSize: '0.78rem', outline: 'none', boxSizing: 'border-box' }}>
+              {memories.map(m => (
+                <option key={m.id} value={m.id} style={{ background: '#1a1428' }}>
+                  [{m.course}] {m.hoursRequired}h — {m.title.substring(0, 38)}
+                </option>
               ))}
-            </div>
-            <div className="flex gap-2">
-              <input value={newCourse} onChange={e => setNewCourse(e.target.value)}
-                onKeyDown={e => { if(e.key==='Enter') addCourse() }}
-                placeholder="New course name..." className="field-input flex-1" />
-              <button onClick={addCourse} className="btn-p" style={{ padding: '0.55rem 1rem' }}>Add</button>
-            </div>
-            <div className="flex justify-end gap-2 mt-4">
-              <button onClick={onClose} className="btn-s">Cancel</button>
-              <button onClick={() => { onSaveCourses(courseList); onClose() }} className="btn-p">Save</button>
-            </div>
+            </select>
           </div>
-        )}
 
-        {/* Tab: Memories */}
-        {tab === 'memories' && (
-          <div className="px-5 py-4">
-            <p className="text-xs mb-3" style={{ color: 'var(--text-dim)' }}>Set a background image and custom text for each memory.</p>
-
-            {/* Memory selector */}
-            <div className="mb-3">
-              <label className="block text-xs tracking-widest uppercase mb-1.5" style={{ color: 'var(--text-dim)' }}>Select Memory</label>
-              <select value={selectedMemoryId} onChange={e => setSelectedMemoryId(e.target.value)} className="field-input">
-                {memories.map(m => (
-                  <option key={m.id} value={m.id}>
-                    [{m.course}] {m.hoursRequired}h — {m.title.substring(0, 35)}...
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Image URL */}
-            <div className="mb-3">
-              <label className="block text-xs tracking-widest uppercase mb-1.5" style={{ color: 'var(--text-dim)' }}>Background Image URL</label>
-              <input value={imgUrl} onChange={e => setImgUrl(e.target.value)}
-                placeholder="https://i.imgur.com/..." className="field-input" />
-              {imgUrl && (
-                <div className="mt-2 rounded overflow-hidden" style={{ height: '60px' }}>
-                  <img src={imgUrl} alt="preview" className="w-full h-full object-cover"
-                    onError={e => e.target.style.display='none'} />
-                </div>
-              )}
-            </div>
-
-            {/* Custom text */}
-            <div className="mb-4">
-              <label className="block text-xs tracking-widest uppercase mb-1.5" style={{ color: 'var(--text-dim)' }}>Custom Memory Text <span style={{ opacity: 0.5 }}>(optional)</span></label>
-              <textarea value={memText} onChange={e => setMemText(e.target.value)}
-                placeholder="Leave empty to use Notion text..."
-                rows={3} className="field-input" style={{ resize: 'vertical' }} />
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <button onClick={onClose} className="btn-s">Cancel</button>
-              <button onClick={saveMemorySettings} className="btn-p">Save Memory</button>
-            </div>
+          <div style={{ marginBottom: '14px' }}>
+            <label style={{ display: 'block', fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(232,223,245,0.38)', marginBottom: '6px' }}>Memory Text</label>
+            <textarea value={memTitle} onChange={e => setMemTitle(e.target.value)} rows={3}
+              style={{ width: '100%', padding: '8px 10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(155,109,255,0.2)', borderRadius: '2px', color: '#e8dff5', fontFamily: 'Cormorant Garamond,serif', fontStyle: 'italic', fontSize: '0.9rem', outline: 'none', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.5 }} />
           </div>
-        )}
+
+          <div style={{ marginBottom: '18px' }}>
+            <label style={{ display: 'block', fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(232,223,245,0.38)', marginBottom: '6px' }}>Background Image URL</label>
+            <input type="text" value={imgUrl} onChange={e => { setImgUrl(e.target.value); setPreviewOk(true) }} placeholder="https://i.imgur.com/..."
+              style={{ width: '100%', padding: '8px 10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(155,109,255,0.2)', borderRadius: '2px', color: '#e8dff5', fontFamily: 'DM Sans,sans-serif', fontSize: '0.78rem', outline: 'none', boxSizing: 'border-box' }} />
+            {imgUrl && previewOk && (
+              <div style={{ marginTop: '8px', height: '70px', borderRadius: '3px', overflow: 'hidden' }}>
+                <img src={imgUrl} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={() => setPreviewOk(false)} />
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+            <button onClick={onClose} style={{ background: 'transparent', border: '1px solid rgba(155,109,255,0.2)', color: '#c4a4ff', fontFamily: 'DM Sans,sans-serif', fontSize: '0.68rem', letterSpacing: '0.08em', textTransform: 'uppercase', padding: '0.55rem 1.2rem', borderRadius: '2px', cursor: 'pointer' }}>Close</button>
+            <button onClick={handleSave} style={{ background: saved ? 'linear-gradient(135deg,#3a7a50,#5ab070)' : 'linear-gradient(135deg,#6b3fa0,#9b6dff)', border: 'none', color: '#fff', fontFamily: 'DM Sans,sans-serif', fontSize: '0.68rem', letterSpacing: '0.08em', textTransform: 'uppercase', padding: '0.55rem 1.2rem', borderRadius: '2px', cursor: 'pointer', transition: 'background 0.3s' }}>
+              {saved ? 'Saved ✓' : 'Save'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -364,182 +314,189 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [activeCourse, setActiveCourse] = useState('All')
-  const [selectedMemory, setSelectedMemory] = useState(null)
+  const [selected, setSelected] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
-
-  // Persistent state
-  const [courses, setCourses] = useState(() => ls.get('mg_courses', DEFAULT_COURSES))
   const [images, setImages] = useState(() => ls.get('mg_images', {}))
-  const [customTexts, setCustomTexts] = useState(() => ls.get('mg_texts', {}))
+  const [editedTitles, setEditedTitles] = useState(() => ls.get('mg_titles', {}))
+  const [revealed, setRevealed] = useState(() => ls.get('mg_revealed', {}))
+  const [coins, setCoins] = useState(null)
+  const [coinsLoading, setCoinsLoading] = useState(true)
 
-  // Secret click on title
   const handleSecretClick = useSecretClick(() => setShowSettings(true))
 
-  // Fetch memories from Notion
   const fetchMemories = useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true); setError(null)
     try {
       const res = await fetch('/api/memories')
-      if (!res.ok) throw new Error('Failed to fetch')
       const data = await res.json()
       if (data.error) throw new Error(data.error)
-      setMemories(data.memories)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
+      setMemories(data.memories || [])
+    } catch (err) { setError(err.message) }
+    finally { setLoading(false) }
   }, [])
 
-  useEffect(() => { fetchMemories() }, [fetchMemories])
+  const fetchCoins = useCallback(async () => {
+    setCoinsLoading(true)
+    try {
+      const res = await fetch('/api/get-coins')
+      const data = await res.json()
+      setCoins(data.availableCoins ?? 0)
+    } catch { setCoins(0) }
+    finally { setCoinsLoading(false) }
+  }, [])
 
-  // Derived course list from Notion data + user custom courses
-  const notionCourses = [...new Set(memories.map(m => m.course).filter(Boolean))]
-  const allTabs = ['All', ...courses.filter(c => notionCourses.includes(c) || courses.includes(c))]
-  const uniqueTabs = ['All', ...new Set([...courses.filter(c => notionCourses.includes(c))])]
+  useEffect(() => { fetchMemories(); fetchCoins() }, [])
 
-  const filtered = activeCourse === 'All'
-    ? memories
-    : memories.filter(m => m.course === activeCourse)
-
-  const saveImage = (id, url) => {
-    const updated = { ...images, [id]: url }
-    setImages(updated)
-    ls.set('mg_images', updated)
+  const handleSpend = async (memoryId, coinCost) => {
+    if (coins < coinCost) throw new Error('Not enough coins')
+    const res = await fetch('/api/spend-coins', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ coinCost }),
+    })
+    const data = await res.json()
+    if (!res.ok || data.error) throw new Error(data.error || 'Failed to spend coins')
+    // Update local state
+    const newRevealed = { ...revealed, [memoryId]: true }
+    setRevealed(newRevealed)
+    ls.set('mg_revealed', newRevealed)
+    setCoins(prev => prev - coinCost)
+    // Update selected memory to show revealed state
+    setSelected(prev => prev ? { ...prev } : null)
   }
 
-  const saveText = (id, text) => {
-    const updated = { ...customTexts, [id]: text }
-    setCustomTexts(updated)
-    ls.set('mg_texts', updated)
+  const saveMemory = (id, imgUrl, title) => {
+    const newImgs = { ...images, [id]: imgUrl }
+    const newTitles = { ...editedTitles, [id]: title }
+    setImages(newImgs); ls.set('mg_images', newImgs)
+    setEditedTitles(newTitles); ls.set('mg_titles', newTitles)
   }
 
-  const saveCourses = (list) => {
-    setCourses(list)
-    ls.set('mg_courses', list)
-    if (activeCourse !== 'All' && !list.includes(activeCourse)) setActiveCourse('All')
-  }
-
-  // Stats
+  const courses = ['All', ...new Set(memories.map(m => m.course).filter(Boolean))]
+  const filtered = activeCourse === 'All' ? memories : memories.filter(m => m.course === activeCourse)
   const totalUnlocked = memories.filter(m => m.unlocked).length
-  const total = memories.length
+  const totalRevealed = memories.filter(m => revealed[m.id]).length
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: '1.5rem' }}>
+    <div style={{ minHeight: '100vh', background: '#0a0812', padding: '1.5rem' }}>
+      <style>{`
+        @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes spin { to{transform:rotate(360deg)} }
+        * { box-sizing: border-box; }
+        body { margin:0; font-family:'DM Sans',sans-serif; color:#e8dff5; }
+        select option { background:#1a1428; color:#e8dff5; }
+        ::-webkit-scrollbar{width:4px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:#3d2270;border-radius:2px}
+      `}</style>
 
-      {/* Modals */}
-      {selectedMemory && (
+      {selected && (
         <CardModal
-          memory={selectedMemory}
-          image={images[selectedMemory.id]}
-          customText={customTexts[selectedMemory.id]}
-          onClose={() => setSelectedMemory(null)}
+          memory={selected}
+          image={images[selected.id]}
+          editedTitle={editedTitles[selected.id]}
+          revealed={!!revealed[selected.id]}
+          coins={coins ?? 0}
+          onSpend={handleSpend}
+          onClose={() => setSelected(null)}
         />
       )}
+
       {showSettings && memories.length > 0 && (
         <SettingsPanel
           memories={memories}
           images={images}
-          customTexts={customTexts}
-          courses={courses}
-          onSaveImage={saveImage}
-          onSaveText={saveText}
-          onSaveCourses={saveCourses}
+          editedTitles={editedTitles}
+          onSave={saveMemory}
           onClose={() => setShowSettings(false)}
         />
       )}
 
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-start justify-between mb-1">
+      <div style={{ marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
           <div>
-            <p className="text-xs tracking-[0.3em] uppercase mb-1" style={{ color: 'var(--purple-soft)', opacity: 0.6 }}>
-              ✦ Memory Collection ✦
-            </p>
-            <h1
-              className="font-display text-3xl font-light italic cursor-default select-none"
-              style={{ color: 'var(--text)' }}
-              onClick={handleSecretClick}
-              title=""
-            >
+            <p style={{ fontSize: '0.62rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'rgba(196,164,255,0.5)', marginBottom: '2px' }}>✦ Memory Collection ✦</p>
+            <h1 onClick={handleSecretClick} style={{ fontFamily: 'Cormorant Garamond,serif', fontWeight: 300, fontStyle: 'italic', fontSize: '2rem', color: '#e8dff5', margin: 0, cursor: 'default', userSelect: 'none' }}>
               Memories
             </h1>
           </div>
-          {/* Stats */}
-          {!loading && !error && (
-            <div className="text-right">
-              <p className="font-display italic text-2xl" style={{ color: 'var(--purple-soft)' }}>
-                {totalUnlocked}<span className="text-sm" style={{ color: 'var(--text-dim)' }}>/{total}</span>
-              </p>
-              <p className="text-xs tracking-widest uppercase" style={{ color: 'var(--text-dim)' }}>Unlocked</p>
+          <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end' }}>
+            {/* Coin balance */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,200,100,0.08)', border: '1px solid rgba(255,200,100,0.2)', borderRadius: '20px', padding: '4px 12px' }}>
+              <span style={{ fontSize: '14px' }}>🪙</span>
+              <span style={{ fontSize: '0.85rem', color: '#ffd580', fontWeight: 500 }}>
+                {coinsLoading ? '…' : coins}
+              </span>
             </div>
-          )}
+            {/* Stats */}
+            {!loading && !error && (
+              <p style={{ fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(232,223,245,0.3)', margin: 0 }}>
+                {totalUnlocked} unlocked · {totalRevealed} revealed
+              </p>
+            )}
+          </div>
         </div>
-        <div className="h-px" style={{ background: 'linear-gradient(90deg, var(--purple), transparent)' }} />
+        <div style={{ height: '1px', background: 'linear-gradient(90deg,rgba(155,109,255,0.6),transparent)' }} />
       </div>
 
       {/* Course tabs */}
       {!loading && !error && (
-        <div className="flex gap-2 flex-wrap mb-5">
-          {['All', ...new Set(memories.map(m => m.course).filter(Boolean).filter(c => courses.includes(c) || true))].map(c => (
-            <button key={c} onClick={() => setActiveCourse(c)}
-              className={`course-tab ${activeCourse === c ? 'active' : ''}`}>
-              {c}
-            </button>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+          {courses.map(c => (
+            <button key={c} onClick={() => setActiveCourse(c)} style={{
+              padding: '4px 14px', borderRadius: '2px', fontSize: '0.66rem',
+              letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer',
+              fontFamily: 'DM Sans,sans-serif', transition: 'all 0.15s', border: 'none',
+              background: activeCourse === c ? 'linear-gradient(135deg,#6b3fa0,#9b6dff)' : 'rgba(255,255,255,0.04)',
+              color: activeCourse === c ? '#fff' : 'rgba(232,223,245,0.4)',
+              outline: activeCourse === c ? 'none' : '1px solid rgba(155,109,255,0.15)',
+            }}>{c}</button>
           ))}
         </div>
       )}
 
       {/* Loading */}
       {loading && (
-        <div className="flex flex-col items-center justify-center py-16 gap-4">
-          <div className="spinner" />
-          <p className="text-xs tracking-widest uppercase" style={{ color: 'var(--text-dim)' }}>Loading memories…</p>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '4rem 0', gap: '14px' }}>
+          <div style={{ width: '28px', height: '28px', border: '2px solid rgba(155,109,255,0.15)', borderTopColor: '#9b6dff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+          <p style={{ fontSize: '0.65rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(232,223,245,0.25)' }}>Loading memories…</p>
         </div>
       )}
 
       {/* Error */}
       {error && !loading && (
-        <div className="text-center py-12">
-          <p className="text-sm mb-2" style={{ color: 'rgba(255,120,150,0.9)' }}>Failed to load memories</p>
-          <p className="text-xs mb-4" style={{ color: 'var(--text-dim)' }}>{error}</p>
-          <button onClick={fetchMemories} className="btn-p">Retry</button>
+        <div style={{ textAlign: 'center', padding: '3rem 0' }}>
+          <p style={{ fontSize: '0.9rem', color: 'rgba(255,120,150,0.9)', marginBottom: '6px' }}>Failed to load</p>
+          <p style={{ fontSize: '0.72rem', color: 'rgba(232,223,245,0.3)', marginBottom: '14px' }}>{error}</p>
+          <button onClick={fetchMemories} style={{ background: 'linear-gradient(135deg,#6b3fa0,#9b6dff)', border: 'none', color: '#fff', fontFamily: 'DM Sans,sans-serif', fontSize: '0.68rem', letterSpacing: '0.08em', textTransform: 'uppercase', padding: '0.55rem 1.4rem', borderRadius: '2px', cursor: 'pointer' }}>Retry</button>
         </div>
       )}
 
       {/* Grid */}
       {!loading && !error && (
-        <>
-          {filtered.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="font-display italic text-xl mb-2" style={{ color: 'var(--text-dim)' }}>No memories yet</p>
-              <p className="text-xs" style={{ color: 'var(--text-dim)' }}>Keep studying to unlock memories ✨</p>
-            </div>
-          ) : (
-            <div className="grid gap-4 fade-in" style={{
-              gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-            }}>
-              {filtered.map(m => (
-                <MemoryCard
-                  key={m.id}
-                  memory={m}
-                  image={images[m.id]}
-                  customText={customTexts[m.id]}
-                  onClick={setSelectedMemory}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Footer hint */}
-          <div className="mt-6 text-center">
-            <p className="text-xs" style={{ color: 'rgba(155,109,255,0.2)', letterSpacing: '0.1em' }}>
-              ✦ ✦ ✦
-            </p>
+        filtered.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '3rem 0' }}>
+            <p style={{ fontFamily: 'Cormorant Garamond,serif', fontStyle: 'italic', fontSize: '1.3rem', color: 'rgba(232,223,245,0.25)', marginBottom: '6px' }}>No memories yet</p>
+            <p style={{ fontSize: '0.7rem', color: 'rgba(232,223,245,0.18)' }}>Keep studying to unlock memories ✨</p>
           </div>
-        </>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(140px,1fr))', gap: '14px', animation: 'fadeIn 0.4s ease' }}>
+            {filtered.map(m => (
+              <MemoryCard
+                key={m.id}
+                memory={m}
+                image={images[m.id]}
+                editedTitle={editedTitles[m.id]}
+                revealed={!!revealed[m.id]}
+                onClick={setSelected}
+              />
+            ))}
+          </div>
+        )
       )}
+
+      <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+        <p style={{ fontSize: '0.6rem', color: 'rgba(155,109,255,0.12)', letterSpacing: '0.15em' }}>✦ ✦ ✦</p>
+      </div>
     </div>
   )
 }
