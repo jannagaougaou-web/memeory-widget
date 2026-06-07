@@ -277,11 +277,18 @@ function SettingsPanel({ memories, images, editedTitles, onSave, onClose }) {
             <input type="text" value={imgUrl} onChange={e => { setImgUrl(e.target.value); setPreviewOk(true) }} placeholder="https://i.imgur.com/..." style={{ ...input }} />
             {imgUrl && previewOk && <div style={{ marginTop: '8px', height: '70px', borderRadius: '3px', overflow: 'hidden' }}><img src={imgUrl} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={() => setPreviewOk(false)} /></div>}
           </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '16px' }}>
             <button onClick={onClose} style={{ background: 'transparent', border: `1px solid ${T.border}`, color: T.accentSoft, fontFamily: 'DM Sans,sans-serif', fontSize: '0.68rem', letterSpacing: '0.08em', textTransform: 'uppercase', padding: '0.55rem 1.2rem', borderRadius: '2px', cursor: 'pointer' }}>Close</button>
             <button onClick={handleSave} style={{ background: saved ? 'linear-gradient(135deg,#2a6a40,#4a9a60)' : T.btnPrimary, border: 'none', color: '#fff', fontFamily: 'DM Sans,sans-serif', fontSize: '0.68rem', letterSpacing: '0.08em', textTransform: 'uppercase', padding: '0.55rem 1.2rem', borderRadius: '2px', cursor: 'pointer', transition: 'background 0.3s' }}>
               {saved ? 'Saved ✓' : 'Save'}
             </button>
+          </div>
+          <div style={{ borderTop: '1px solid rgba(255,80,60,0.15)', paddingTop: '14px' }}>
+            <p style={{ fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(255,100,80,0.4)', marginBottom: '8px' }}>⚠ Danger Zone</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <p style={{ fontSize: '0.7rem', color: T.textDim, margin: 0 }}>Reset all revealed memories & cached data</p>
+              <button onClick={() => { if (window.confirm('Reset all local data? This clears revealed memories, images and custom texts.')) { localStorage.removeItem('mg_revealed'); localStorage.removeItem('mg_images'); localStorage.removeItem('mg_titles'); window.location.reload(); } }} style={{ background: 'rgba(255,80,60,0.1)', border: '1px solid rgba(255,80,60,0.3)', color: 'rgba(255,120,100,0.8)', fontFamily: 'DM Sans,sans-serif', fontSize: '0.65rem', letterSpacing: '0.08em', textTransform: 'uppercase', padding: '0.45rem 1rem', borderRadius: '2px', cursor: 'pointer', whiteSpace: 'nowrap', marginLeft: '12px' }}>Reset</button>
+            </div>
           </div>
         </div>
       </div>
